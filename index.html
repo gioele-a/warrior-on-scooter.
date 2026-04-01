@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warrior on Scooter - Coloring App</title>
+    <style>
+        /* Base e Layout */
+        body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; background-color: white; overflow-x: hidden; }
+        
+        /* Header - Titolo grande */
+        header { width: 100%; padding: 5px 0 0px 40px; max-width: 1400px; align-self: flex-start; z-index: 0; }
+        .logo { max-width: 650px; height: auto; display: block; }
+        
+        /* Container principale alzato */
+        .main-container { 
+            display: flex; 
+            gap: 40px; 
+            padding: 0px 40px; 
+            max-width: 1400px; 
+            width: 100%; 
+            align-items: flex-start; 
+            margin-top: -115px; 
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Area Disegno - image-rendering: pixelated elimina la sfocatura dei bordi */
+        .canvas-container { position: relative; width: 700px; height: 700px; cursor: none; line-height: 0; border: none; }
+        canvas { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            /* Queste tre righe forzano la nitidezza estrema */
+            image-rendering: optimizeSpeed;             
+            image-rendering: -moz-crisp-edges;          
+            image-rendering: pixelated;                 
+        }
+        #imageLayer { z-index: 2; pointer-events: none; } 
+        #drawLayer { z-index: 1; }
+        
+        #brushCursor { position: fixed; width: 15px; height: 15px; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; pointer-events: none; z-index: 999; transform: translate(-50%, -50%); display: none; }
+
+        /* Sidebar */
+        .sidebar { display: flex; flex-direction: column; gap: 15px; width: 400px; padding-top: 135px; } 
+        .instructions { font-size: 15px; line-height: 1.1; color: #000; margin-bottom: 5px; }
+        .instructions strong { font-weight: bold; margin-bottom: 5px; display: block; font-size: 16px; }
+        
+        .menu-item { border: 1px solid black; border-radius: 30px; padding: 10px 25px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; background: white; font-size: 17px; margin-bottom: 5px; }
+        .submenu { border: 1px solid black; border-radius: 20px; padding: 15px; background: white; display: none; margin-bottom: 10px; }
+        .submenu.active { display: block; }
+        
+        .color-tools { display: flex; flex-direction: column; gap: 10px; }
+        .btn { background: none; border: none; cursor: pointer; text-align: left; font-weight: bold; font-size: 15px; padding: 5px 0; width: 100%; text-transform: uppercase; }
+        input[type="color"] { border: 1px solid #000; width: 100%; height: 40px; cursor: pointer; background: white; padding: 0; }
+        .download-links a { display: block; color: black; text-decoration: none; padding: 6px 0; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+<div id="brushCursor"></div>
+
+<header>
+    <img src="titolo.png" alt="warrior on scooter" class="logo" onerror="this.style.display='none'; this.after('warrior on scooter');">
+</header>
+
+<div class="main-container">
+    <div class="canvas-container" id="container">
+        <canvas id="drawLayer" width="700" height="700"></canvas>
+        <canvas id="imageLayer" width="700" height="700"></canvas>
+    </div>
+
+    <div class="sidebar">
+        <div class="instructions">
+            <strong>INSTRUCTIONS</strong>
+            Color your warrior as you like,<br>
+            you are free to use any technique.<br>
+            Give him a name and<br>
+            write your name and the date.<br><br>
+            Send the result to<br>
+            @ruspice_piccante
+        </div>
+
+        <div class="menu-item" onclick="toggleMenu('tableMenu')">TABLE WORK <span>▼</span></div>
+        <div id="tableMenu" class="submenu">
+            <div class="color-tools">
+                <button class="btn" onclick="setTool('brush')">BRUSH</button>
+                <button class="btn" onclick="setTool('rubber')">RUBBER</button>
+                <button class="btn" onclick="clearCanvas()">DELETE</button>
+                <label style="font-weight: bold; font-size: 14px;">COLOR</label>
+                <input type="color" id="colorPicker" value="#ff0000">
+            </div>
+        </div>
+
+        <div class="menu-item" onclick="toggleMenu('downloadMenu')">DOWNLOAD <span>▼</span></div>
+        <div id="downloadMenu" class="submenu">
+            <div class="download-links">
+                <a href="warrior_A4.pdf" download>A4</a>
+                <a href="warrior_A3.pdf" download>A3</a>
+                <a href="warrior_30x40.pdf" download>30 X 40 CM</a>
+                <a href="warrior_100x70.pdf" download>100 X 70 CM</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const drawCanvas = document.getElementById('drawLayer');
+    const drawCtx = drawCanvas.getContext('2d');
+    const imgCanvas = document.getElementById('imageLayer');
+    const imgCtx = imgCanvas.getContext('2d');
+    const colorPicker = document.getElementById('colorPicker');
+    const brushCursor = document.getElementById('brushCursor');
+    const container = document.getElementById('container');
+    
+    let painting = false;
+    let tool = 'brush';
+
+    const img = new Image();
+    img.src = 'immagine.png'; 
+    img.onload = () => {
+        imgCtx.clearRect(0, 0, 700, 700);
+        // Disabilita lo smoothing del canvas per mantenere i bordi taglienti
+        imgCtx.imageSmoothingEnabled = false;
+        imgCtx.drawImage(img, 0, 0, 700, 700);
+    };
+
+    window.addEventListener('mousemove', (e) => {
+        brushCursor.style.left = e.clientX + 'px';
+        brushCursor.style.top = e.clientY + 'px';
+    });
+
+    container.addEventListener('mouseenter', () => { brushCursor.style.display = 'block'; updateCursor(); });
+    container.addEventListener('mouseleave', () => { brushCursor.style.display = 'none'; });
+
+    function updateCursor() {
+        brushCursor.style.backgroundColor = tool === 'rubber' ? 'white' : colorPicker.value;
+        brushCursor.style.width = tool === 'rubber' ? '40px' : '15px';
+        brushCursor.style.height = tool === 'rubber' ? '40px' : '15px';
+        brushCursor.style.border = tool === 'rubber' ? '1px solid black' : '1px solid rgba(0,0,0,0.3)';
+    }
+
+    colorPicker.addEventListener('input', updateCursor);
+
+    function startPosition(e) { painting = true; draw(e); }
+    function finishedPosition() { painting = false; drawCtx.beginPath(); }
+    
+    function draw(e) {
+        if (!painting) return;
+        const rect = drawCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        drawCtx.lineCap = 'round';
+        drawCtx.lineJoin = 'round';
+        drawCtx.lineWidth = tool === 'rubber' ? 40 : 15;
+        drawCtx.globalCompositeOperation = tool === 'rubber' ? 'destination-out' : 'source-over';
+        drawCtx.strokeStyle = colorPicker.value;
+
+        drawCtx.lineTo(x, y);
+        drawCtx.stroke();
+        drawCtx.beginPath();
+        drawCtx.moveTo(x, y);
+    }
+
+    drawCanvas.addEventListener('mousedown', startPosition);
+    window.addEventListener('mouseup', finishedPosition);
+    drawCanvas.addEventListener('mousemove', draw);
+
+    function setTool(t) { tool = t; updateCursor(); }
+    function clearCanvas() { if(confirm("Cancellare tutto il colore?")) drawCtx.clearRect(0, 0, 700, 700); }
+    
+    function toggleMenu(id) {
+        const menu = document.getElementById(id);
+        const isActive = menu.classList.contains('active');
+        document.querySelectorAll('.submenu').forEach(m => m.classList.remove('active'));
+        if (!isActive) menu.classList.add('active');
+    }
+</script>
+</body>
+</html>

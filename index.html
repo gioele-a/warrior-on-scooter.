@@ -2,17 +2,15 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Warrior on Scooter - Coloring App</title>
     <style>
         /* Base e Layout */
         body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; background-color: white; overflow-x: hidden; }
         
-        /* Header - Titolo grande */
         header { width: 100%; padding: 5px 0 0px 40px; max-width: 1400px; align-self: flex-start; z-index: 0; }
-        .logo { max-width: 650px; height: auto; display: block; }
+        .logo { max-width: 650px; width: 90%; height: auto; display: block; }
         
-        /* Container principale alzato */
         .main-container { 
             display: flex; 
             gap: 40px; 
@@ -23,17 +21,25 @@
             margin-top: -115px; 
             position: relative;
             z-index: 1;
+            box-sizing: border-box;
         }
         
-        /* Area Disegno - image-rendering: pixelated elimina la sfocatura dei bordi */
-        .canvas-container { position: relative; width: 700px; height: 700px; cursor: none; line-height: 0; border: none; }
+        /* Area Disegno Scalabile */
+        .canvas-container { 
+            position: relative; 
+            width: 700px; 
+            height: 700px; 
+            cursor: none; 
+            line-height: 0; 
+            border: none;
+            flex-shrink: 0;
+        }
         canvas { 
             position: absolute; 
             top: 0; 
             left: 0; 
-            /* Queste tre righe forzano la nitidezza estrema */
-            image-rendering: optimizeSpeed;             
-            image-rendering: -moz-crisp-edges;          
+            width: 100%;
+            height: 100%;
             image-rendering: pixelated;                 
         }
         #imageLayer { z-index: 2; pointer-events: none; } 
@@ -54,6 +60,33 @@
         .btn { background: none; border: none; cursor: pointer; text-align: left; font-weight: bold; font-size: 15px; padding: 5px 0; width: 100%; text-transform: uppercase; }
         input[type="color"] { border: 1px solid #000; width: 100%; height: 40px; cursor: pointer; background: white; padding: 0; }
         .download-links a { display: block; color: black; text-decoration: none; padding: 6px 0; font-size: 15px; }
+
+        /* --- MEDIA QUERY PER MOBILE --- */
+        @media (max-width: 850px) {
+            header { padding: 10px 0 0 20px; }
+            .logo { max-width: 300px; }
+            
+            .main-container { 
+                flex-direction: column; 
+                margin-top: 10px; /* Reset del margine negativo su mobile */
+                padding: 10px;
+                align-items: center;
+                gap: 20px;
+            }
+            
+            .canvas-container { 
+                width: 95vw;    /* Prende quasi tutta la larghezza dello schermo */
+                height: 95vw;   /* Mantiene il quadrato */
+            }
+            
+            .sidebar { 
+                width: 100%; 
+                padding-top: 0; 
+                padding-bottom: 40px;
+            }
+            
+            #brushCursor { display: none !important; } /* Nascondi cursore su touch */
+        }
     </style>
 </head>
 <body>
@@ -120,17 +153,16 @@
     img.src = 'immagine.png'; 
     img.onload = () => {
         imgCtx.clearRect(0, 0, 700, 700);
-        // Disabilita lo smoothing del canvas per mantenere i bordi taglienti
         imgCtx.imageSmoothingEnabled = false;
         imgCtx.drawImage(img, 0, 0, 700, 700);
     };
 
+    // Gestione Cursore Mouse
     window.addEventListener('mousemove', (e) => {
         brushCursor.style.left = e.clientX + 'px';
         brushCursor.style.top = e.clientY + 'px';
     });
-
-    container.addEventListener('mouseenter', () => { brushCursor.style.display = 'block'; updateCursor(); });
+    container.addEventListener('mouseenter', () => { if(window.innerWidth > 850) brushCursor.style.display = 'block'; });
     container.addEventListener('mouseleave', () => { brushCursor.style.display = 'none'; });
 
     function updateCursor() {
@@ -139,17 +171,41 @@
         brushCursor.style.height = tool === 'rubber' ? '40px' : '15px';
         brushCursor.style.border = tool === 'rubber' ? '1px solid black' : '1px solid rgba(0,0,0,0.3)';
     }
-
     colorPicker.addEventListener('input', updateCursor);
 
-    function startPosition(e) { painting = true; draw(e); }
+    // FUNZIONE DISEGNO UNIFICATA (Mouse e Touch)
+    function getPos(e) {
+        const rect = drawCanvas.getBoundingClientRect();
+        // Calcola scala tra pixel del canvas (700) e dimensione reale a schermo
+        const scaleX = drawCanvas.width / rect.width;
+        const scaleY = drawCanvas.height / rect.height;
+        
+        let clientX, clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    }
+
+    function startPosition(e) { 
+        if (e.type === 'touchstart') e.preventDefault();
+        painting = true; 
+        draw(e); 
+    }
     function finishedPosition() { painting = false; drawCtx.beginPath(); }
     
     function draw(e) {
         if (!painting) return;
-        const rect = drawCanvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        if (e.type === 'touchmove') e.preventDefault(); // Evita lo scroll mentre colori
+
+        const pos = getPos(e);
 
         drawCtx.lineCap = 'round';
         drawCtx.lineJoin = 'round';
@@ -157,15 +213,21 @@
         drawCtx.globalCompositeOperation = tool === 'rubber' ? 'destination-out' : 'source-over';
         drawCtx.strokeStyle = colorPicker.value;
 
-        drawCtx.lineTo(x, y);
+        drawCtx.lineTo(pos.x, pos.y);
         drawCtx.stroke();
         drawCtx.beginPath();
-        drawCtx.moveTo(x, y);
+        drawCtx.moveTo(pos.x, pos.y);
     }
 
+    // Eventi Mouse
     drawCanvas.addEventListener('mousedown', startPosition);
     window.addEventListener('mouseup', finishedPosition);
     drawCanvas.addEventListener('mousemove', draw);
+
+    // Eventi Touch (Mobile)
+    drawCanvas.addEventListener('touchstart', startPosition, {passive: false});
+    window.addEventListener('touchend', finishedPosition);
+    drawCanvas.addEventListener('touchmove', draw, {passive: false});
 
     function setTool(t) { tool = t; updateCursor(); }
     function clearCanvas() { if(confirm("Cancellare tutto il colore?")) drawCtx.clearRect(0, 0, 700, 700); }

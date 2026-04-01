@@ -40,7 +40,6 @@
             left: 0; 
             width: 100%;
             height: 100%;
-            /* Forza la nitidezza estrema per disegni al tratto */
             image-rendering: optimizeSpeed;             
             image-rendering: -moz-crisp-edges;          
             image-rendering: pixelated;                 
@@ -48,10 +47,9 @@
         #imageLayer { z-index: 2; pointer-events: none; } 
         #drawLayer { z-index: 1; }
         
-        /* Cursore Desktop */
         #brushCursor { position: fixed; width: 15px; height: 15px; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; pointer-events: none; z-index: 999; transform: translate(-50%, -50%); display: none; }
 
-        /* Sidebar Destra */
+        /* Sidebar */
         .sidebar { display: flex; flex-direction: column; gap: 15px; width: 400px; padding-top: 135px; } 
         .instructions { font-size: 15px; line-height: 1.1; color: #000; margin-bottom: 5px; }
         .instructions strong { font-weight: bold; margin-bottom: 5px; display: block; font-size: 16px; }
@@ -64,34 +62,32 @@
         .btn { background: none; border: none; cursor: pointer; text-align: left; font-weight: bold; font-size: 15px; padding: 5px 0; width: 100%; text-transform: uppercase; }
         input[type="color"] { border: 1px solid #000; width: 100%; height: 40px; cursor: pointer; background: white; padding: 0; }
         .download-links a { display: block; color: black; text-decoration: none; padding: 6px 0; font-size: 15px; }
-        .download-links a:hover { text-decoration: underline; }
 
         /* --- MEDIA QUERY PER MOBILE --- */
         @media (max-width: 850px) {
-            header { padding: 5px 0 0 15px; }
-            .logo { max-width: 280px; } /* Titolo più compatto */
+            header { padding: 10px 0 0 20px; }
+            .logo { max-width: 320px; } 
             
             .main-container { 
                 flex-direction: column; 
-                margin-top: -70px; /* Alza il disegno verso il titolo su mobile */
+                margin-top: -40px; /* Abbassato leggermente rispetto a prima per mobile */
                 padding: 10px;
                 align-items: center;
-                gap: 15px;
+                gap: 20px;
             }
             
             .canvas-container { 
-                width: 92vw;    
-                height: 92vw;   
+                width: 95vw;    
+                height: 95vw;   
             }
             
             .sidebar { 
                 width: 100%; 
                 padding-top: 0; 
                 padding-bottom: 40px;
-                text-align: left;
             }
             
-            #brushCursor { display: none !important; } /* Niente cursore a cerchio su touch */
+            #brushCursor { display: none !important; } 
         }
     </style>
 </head>
@@ -159,11 +155,10 @@
     img.src = 'immagine.png'; 
     img.onload = () => {
         imgCtx.clearRect(0, 0, 700, 700);
-        imgCtx.imageSmoothingEnabled = false; // Disabilita sfocatura
+        imgCtx.imageSmoothingEnabled = false;
         imgCtx.drawImage(img, 0, 0, 700, 700);
     };
 
-    // Cursore Mouse
     window.addEventListener('mousemove', (e) => {
         brushCursor.style.left = e.clientX + 'px';
         brushCursor.style.top = e.clientY + 'px';
@@ -179,7 +174,6 @@
     }
     colorPicker.addEventListener('input', updateCursor);
 
-    // Coordinata corretta per scala canvas
     function getPos(e) {
         const rect = drawCanvas.getBoundingClientRect();
         const scaleX = drawCanvas.width / rect.width;
@@ -205,14 +199,12 @@
     function draw(e) {
         if (!painting) return;
         if (e.type === 'touchmove') e.preventDefault(); 
-
         const pos = getPos(e);
         drawCtx.lineCap = 'round';
         drawCtx.lineJoin = 'round';
         drawCtx.lineWidth = tool === 'rubber' ? 40 : 15;
         drawCtx.globalCompositeOperation = tool === 'rubber' ? 'destination-out' : 'source-over';
         drawCtx.strokeStyle = colorPicker.value;
-
         drawCtx.lineTo(pos.x, pos.y);
         drawCtx.stroke();
         drawCtx.beginPath();

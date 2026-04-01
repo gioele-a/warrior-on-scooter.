@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Warrior on Scooter - Coloring App</title>
     <style>
-        /* Base e Layout */
+        /* Base e Layout Desktop */
         body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; background-color: white; overflow-x: hidden; }
         
         header { width: 100%; padding: 5px 0 0px 40px; max-width: 1400px; align-self: flex-start; z-index: 0; }
@@ -24,7 +24,7 @@
             box-sizing: border-box;
         }
         
-        /* Area Disegno Scalabile */
+        /* Area Disegno */
         .canvas-container { 
             position: relative; 
             width: 700px; 
@@ -40,14 +40,18 @@
             left: 0; 
             width: 100%;
             height: 100%;
+            /* Forza la nitidezza estrema per disegni al tratto */
+            image-rendering: optimizeSpeed;             
+            image-rendering: -moz-crisp-edges;          
             image-rendering: pixelated;                 
         }
         #imageLayer { z-index: 2; pointer-events: none; } 
         #drawLayer { z-index: 1; }
         
+        /* Cursore Desktop */
         #brushCursor { position: fixed; width: 15px; height: 15px; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; pointer-events: none; z-index: 999; transform: translate(-50%, -50%); display: none; }
 
-        /* Sidebar */
+        /* Sidebar Destra */
         .sidebar { display: flex; flex-direction: column; gap: 15px; width: 400px; padding-top: 135px; } 
         .instructions { font-size: 15px; line-height: 1.1; color: #000; margin-bottom: 5px; }
         .instructions strong { font-weight: bold; margin-bottom: 5px; display: block; font-size: 16px; }
@@ -60,32 +64,34 @@
         .btn { background: none; border: none; cursor: pointer; text-align: left; font-weight: bold; font-size: 15px; padding: 5px 0; width: 100%; text-transform: uppercase; }
         input[type="color"] { border: 1px solid #000; width: 100%; height: 40px; cursor: pointer; background: white; padding: 0; }
         .download-links a { display: block; color: black; text-decoration: none; padding: 6px 0; font-size: 15px; }
+        .download-links a:hover { text-decoration: underline; }
 
         /* --- MEDIA QUERY PER MOBILE --- */
         @media (max-width: 850px) {
-            header { padding: 10px 0 0 20px; }
-            .logo { max-width: 300px; }
+            header { padding: 5px 0 0 15px; }
+            .logo { max-width: 280px; } /* Titolo più compatto */
             
             .main-container { 
                 flex-direction: column; 
-                margin-top: 10px; /* Reset del margine negativo su mobile */
+                margin-top: -70px; /* Alza il disegno verso il titolo su mobile */
                 padding: 10px;
                 align-items: center;
-                gap: 20px;
+                gap: 15px;
             }
             
             .canvas-container { 
-                width: 95vw;    /* Prende quasi tutta la larghezza dello schermo */
-                height: 95vw;   /* Mantiene il quadrato */
+                width: 92vw;    
+                height: 92vw;   
             }
             
             .sidebar { 
                 width: 100%; 
                 padding-top: 0; 
                 padding-bottom: 40px;
+                text-align: left;
             }
             
-            #brushCursor { display: none !important; } /* Nascondi cursore su touch */
+            #brushCursor { display: none !important; } /* Niente cursore a cerchio su touch */
         }
     </style>
 </head>
@@ -153,11 +159,11 @@
     img.src = 'immagine.png'; 
     img.onload = () => {
         imgCtx.clearRect(0, 0, 700, 700);
-        imgCtx.imageSmoothingEnabled = false;
+        imgCtx.imageSmoothingEnabled = false; // Disabilita sfocatura
         imgCtx.drawImage(img, 0, 0, 700, 700);
     };
 
-    // Gestione Cursore Mouse
+    // Cursore Mouse
     window.addEventListener('mousemove', (e) => {
         brushCursor.style.left = e.clientX + 'px';
         brushCursor.style.top = e.clientY + 'px';
@@ -173,13 +179,11 @@
     }
     colorPicker.addEventListener('input', updateCursor);
 
-    // FUNZIONE DISEGNO UNIFICATA (Mouse e Touch)
+    // Coordinata corretta per scala canvas
     function getPos(e) {
         const rect = drawCanvas.getBoundingClientRect();
-        // Calcola scala tra pixel del canvas (700) e dimensione reale a schermo
         const scaleX = drawCanvas.width / rect.width;
         const scaleY = drawCanvas.height / rect.height;
-        
         let clientX, clientY;
         if (e.touches && e.touches.length > 0) {
             clientX = e.touches[0].clientX;
@@ -188,10 +192,7 @@
             clientX = e.clientX;
             clientY = e.clientY;
         }
-        return {
-            x: (clientX - rect.left) * scaleX,
-            y: (clientY - rect.top) * scaleY
-        };
+        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
     }
 
     function startPosition(e) { 
@@ -203,10 +204,9 @@
     
     function draw(e) {
         if (!painting) return;
-        if (e.type === 'touchmove') e.preventDefault(); // Evita lo scroll mentre colori
+        if (e.type === 'touchmove') e.preventDefault(); 
 
         const pos = getPos(e);
-
         drawCtx.lineCap = 'round';
         drawCtx.lineJoin = 'round';
         drawCtx.lineWidth = tool === 'rubber' ? 40 : 15;
@@ -219,12 +219,9 @@
         drawCtx.moveTo(pos.x, pos.y);
     }
 
-    // Eventi Mouse
     drawCanvas.addEventListener('mousedown', startPosition);
     window.addEventListener('mouseup', finishedPosition);
     drawCanvas.addEventListener('mousemove', draw);
-
-    // Eventi Touch (Mobile)
     drawCanvas.addEventListener('touchstart', startPosition, {passive: false});
     window.addEventListener('touchend', finishedPosition);
     drawCanvas.addEventListener('touchmove', draw, {passive: false});
